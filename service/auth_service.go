@@ -9,6 +9,7 @@ import (
 	"github.com/LanangDepok/ebook-store/entity"
 	"github.com/LanangDepok/ebook-store/model"
 	"github.com/LanangDepok/ebook-store/repository"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService interface {
@@ -49,10 +50,16 @@ func (s *authService) Register(req model.RegisterRequest) error {
 		return fmt.Errorf("email already exists")
 	}
 
+	// Hash password using bcrypt
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %v", err)
+	}
+
 	// Create user
 	user := &entity.User{
 		Username: req.Username,
-		Password: req.Password, // In production, use bcrypt or argon2
+		Password: string(hashedPassword),
 		Email:    req.Email,
 		Role:     "user",
 	}
@@ -67,8 +74,9 @@ func (s *authService) Login(req model.LoginRequest) (*model.LoginResponse, error
 		return nil, fmt.Errorf("invalid credentials")
 	}
 
-	// Verify password (in production, use bcrypt.CompareHashAndPassword)
-	if user.Password != req.Password {
+	// Verify password using bcrypt
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	if err != nil {
 		return nil, fmt.Errorf("invalid credentials")
 	}
 

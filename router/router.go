@@ -8,11 +8,12 @@ import (
 )
 
 type Router struct {
-	authController  *controller.AuthController
-	bookController  *controller.BookController
-	cartController  *controller.CartController
-	orderController *controller.OrderController
-	authMiddleware  *middleware.AuthMiddleware
+	authController   *controller.AuthController
+	bookController   *controller.BookController
+	cartController   *controller.CartController
+	orderController  *controller.OrderController
+	uploadController *controller.UploadController
+	authMiddleware   *middleware.AuthMiddleware
 }
 
 func NewRouter(
@@ -20,14 +21,16 @@ func NewRouter(
 	bookController *controller.BookController,
 	cartController *controller.CartController,
 	orderController *controller.OrderController,
+	uploadController *controller.UploadController,
 	authMiddleware *middleware.AuthMiddleware,
 ) *Router {
 	return &Router{
-		authController:  authController,
-		bookController:  bookController,
-		cartController:  cartController,
-		orderController: orderController,
-		authMiddleware:  authMiddleware,
+		authController:   authController,
+		bookController:   bookController,
+		cartController:   cartController,
+		orderController:  orderController,
+		uploadController: uploadController,
+		authMiddleware:   authMiddleware,
 	}
 }
 

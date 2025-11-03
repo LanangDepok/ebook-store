@@ -7,6 +7,7 @@ import (
 	"os"
 
 	_ "github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Database struct {
@@ -77,7 +78,8 @@ func (d *Database) Migrate() error {
 			jumlah INTEGER NOT NULL DEFAULT 1,
 			harga INTEGER NOT NULL DEFAULT 0,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(user_id, book_id)
 		)`,
 		`CREATE TABLE IF NOT EXISTS orders (
 			id SERIAL PRIMARY KEY,
@@ -96,16 +98,27 @@ func (d *Database) Migrate() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)`,
-		`INSERT INTO users (username, password, email, role) VALUES 
-		 ('admin', 'admin123', 'admin@book.com', 'admin'),
-		 ('user', 'user123', 'user@book.com', 'user')
-		 ON CONFLICT (username) DO NOTHING`,
+		`CREATE INDEX IF NOT EXISTS idx_carts_user_id ON carts(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)`,
 	}
 
 	for _, migration := range migrations {
 		if _, err := d.DB.Exec(migration); err != nil {
 			return fmt.Errorf("migration failed: %v", err)
 		}
+	}
+
+	// Insert default users with hashed passwords
+	adminPassword, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+	userPassword, _ := bcrypt.GenerateFromPassword([]byte("user123"), bcrypt.DefaultCost)
+
+	insertUsers := `INSERT INTO users (username, password, email, role) VALUES 
+		 ($1, $2, 'admin@book.com', 'admin'),
+		 ($3, $4, 'user@book.com', 'user')
+		 ON CONFLICT (username) DO NOTHING`
+
+	if _, err := d.DB.Exec(insertUsers, "admin", string(adminPassword), "user", string(userPassword)); err != nil {
+		return fmt.Errorf("failed to insert default users: %v", err)
 	}
 
 	log.Println("Database migration completed")

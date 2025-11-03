@@ -20,6 +20,13 @@ func main() {
 		log.Println("Warning: .env file not found, using system environment variables")
 	}
 
+	// Create uploads directory
+	uploadDir := "uploads/books"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		log.Fatalf("Failed to create upload directory: %v", err)
+	}
+	log.Printf("Upload directory ready: %s", uploadDir)
+
 	// Initialize database
 	db := config.NewDatabase()
 	defer db.Close()
@@ -27,6 +34,16 @@ func main() {
 	// Run migrations
 	if err := db.Migrate(); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
+	}
+
+	// Get base URL for images
+	baseURL := os.Getenv("BASE_URL")
+	if baseURL == "" {
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8080"
+		}
+		baseURL = "http://localhost:" + port
 	}
 
 	// Initialize repositories
@@ -38,15 +55,17 @@ func main() {
 
 	// Initialize services
 	authService := service.NewAuthService(userRepo, sessionRepo)
+	uploadService := service.NewUploadService(uploadDir, baseURL)
 	bookService := service.NewBookService(bookRepo)
 	cartService := service.NewCartService(cartRepo, bookRepo)
 	orderService := service.NewOrderService(orderRepo, cartRepo, bookRepo, db.DB)
 
 	// Initialize controllers
 	authController := controller.NewAuthController(authService)
-	bookController := controller.NewBookController(bookService)
-	cartController := controller.NewCartController(cartService)
+	bookController := controller.NewBookController(bookService, uploadService)
+	cartController := controller.NewCartController(cartService, uploadService)
 	orderController := controller.NewOrderController(orderService)
+	uploadController := controller.NewUploadController(uploadService, uploadDir)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuthMiddleware(db.DB)
@@ -57,6 +76,7 @@ func main() {
 		bookController,
 		cartController,
 		orderController,
+		uploadController,
 		authMiddleware,
 	)
 
@@ -97,6 +117,10 @@ func main() {
 	log.Println("    GET    /api/orders")
 	log.Println("    POST   /api/orders")
 	log.Println("    GET    /api/orders/detail?id=1")
+	log.Println("  Upload:")
+	log.Println("    POST   /api/upload/image (admin only)")
+	log.Println("  Static:")
+	log.Println("    GET    /uploads/books/{filename}")
 	log.Println("  Health:")
 	log.Println("    GET    /api/health")
 	log.Println("========================================")

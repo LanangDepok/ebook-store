@@ -11,11 +11,15 @@ import (
 )
 
 type CartController struct {
-	cartService service.CartService
+	cartService   service.CartService
+	uploadService service.UploadService
 }
 
-func NewCartController(cartService service.CartService) *CartController {
-	return &CartController{cartService: cartService}
+func NewCartController(cartService service.CartService, uploadService service.UploadService) *CartController {
+	return &CartController{
+		cartService:   cartService,
+		uploadService: uploadService,
+	}
 }
 
 func (c *CartController) AddToCart(w http.ResponseWriter, r *http.Request) {
